@@ -29,6 +29,12 @@ end
 # Create tmp directory
 FileUtils.mkdir_p full_tmp_path
 
+# Checking if we should split backups into directories
+store_path_prefix = ""
+if defined?(SPLIT_INTO_SEPARATE_DIRECTORIES) and SPLIT_INTO_SEPARATE_DIRECTORIES
+  store_path_prefix = timestamp + "/"
+end
+
 # Perform MySQL backups
 if defined?(MYSQL_DBS)
   MYSQL_DBS.each do |db|
@@ -40,7 +46,7 @@ if defined?(MYSQL_DBS)
       password_param = ""
     end
     system("#{MYSQLDUMP_CMD} -u #{MYSQL_USER} #{password_param} --single-transaction --add-drop-table --add-locks --create-options --disable-keys --extended-insert --quick #{db} | #{GZIP_CMD} -c > #{full_tmp_path}/#{db_filename}")
-    S3Object.store(db_filename, open("#{full_tmp_path}/#{db_filename}"), S3_BUCKET)
+    S3Object.store(store_path_prefix + db_filename, open("#{full_tmp_path}/#{db_filename}"), S3_BUCKET)
   end
 end
 
@@ -51,7 +57,7 @@ if defined?(MONGO_DBS)
   MONGO_DBS.each do |mdb|
     mdb_filename = "mdb-#{mdb}-#{timestamp}.tgz"
     system("#{MONGODUMP_CMD} -h #{MONGO_HOST} -d #{mdb} -o #{mdb_dump_dir} && cd #{mdb_dump_dir}/#{mdb} && #{TAR_CMD} -czf #{full_tmp_path}/#{mdb_filename} .")
-    S3Object.store(mdb_filename, open("#{full_tmp_path}/#{mdb_filename}"), S3_BUCKET)
+    S3Object.store(store_path_prefix + mdb_filename, open("#{full_tmp_path}/#{mdb_filename}"), S3_BUCKET)
   end
   FileUtils.remove_dir mdb_dump_dir
 end
@@ -60,8 +66,10 @@ end
 if defined?(DIRECTORIES)
   DIRECTORIES.each do |name, dir|
     dir_filename = "dir-#{name}-#{timestamp}.tgz"
+    
     system("cd #{dir} && #{TAR_CMD} -czf #{full_tmp_path}/#{dir_filename} .")
-    S3Object.store(dir_filename, open("#{full_tmp_path}/#{dir_filename}"), S3_BUCKET)
+    S3Object.store(store_path_prefix + dir_filename, open("#{full_tmp_path}/#{dir_filename}"), S3_BUCKET)
+    
   end
 end
 
@@ -75,13 +83,14 @@ if defined?(SINGLE_FILES)
 
     # Filename for files
     files_filename = "files-#{name}-#{timestamp}.tgz"
-
+    
+    
     # Copy files to temp directory
     FileUtils.cp files, files_tmp_path
 
     # Create archive & copy to S3
     system("cd #{files_tmp_path} && #{TAR_CMD} -czf #{full_tmp_path}/#{files_filename} .")
-    S3Object.store(files_filename, open("#{full_tmp_path}/#{files_filename}"), S3_BUCKET)
+    S3Object.store(store_path_prefix + files_filename, open("#{full_tmp_path}/#{files_filename}"), S3_BUCKET)
 
     # Remove the temporary directory for the files
     FileUtils.remove_dir files_tmp_path

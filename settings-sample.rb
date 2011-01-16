@@ -24,6 +24,9 @@ S3_BUCKET = 'my.unique.name'
 # SPECIFY HOW MANY DAYS OF ARCHIVES YOU WANT TO KEEP
 DAYS_OF_ARCHIVES = 7
 
+# STORE BACKUPS IN FOLDERS
+SPLIT_INTO_SEPARATE_DIRECTORIES = false
+
 # MYSQL CONFIG
 #  * Put the MySQL table names that you want to back up in the MYSQL_DBS array below
 #    Archive will be named in the format: db-table_name-200912010423.tgz
